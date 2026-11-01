@@ -482,6 +482,54 @@
     showToast(NAMES[kind]);
   }
 
+  // ---------- music ----------
+  // Plain http first because a 2016 TV may not trust newer https certificates.
+  var STATIONS = [
+    { name: 'Fluid', urls: ['http://ice1.somafm.com/fluid-128-mp3', 'http://ice2.somafm.com/fluid-128-mp3', 'https://ice.somafm.com/fluid'] },
+    { name: '24/7 Lofi', urls: ['http://ec3.yesstreaming.net:3750/stream'] },
+    { name: 'Chill Hop', urls: ['http://radio.hearme.fm:9230/stream'] },
+    { name: 'Groove Salad', urls: ['http://ice1.somafm.com/groovesalad-128-mp3', 'http://ice2.somafm.com/groovesalad-128-mp3', 'https://ice.somafm.com/groovesalad'] }
+  ];
+  var audio = new Audio(), station = 0, urlIdx = 0, musicOn = true, failsInARow = 0, stallTimer = 0;
+  audio.preload = 'none';
+  try {
+    var st = parseInt(window.localStorage.getItem('flipFellaStation'), 10); if (st >= 0 && st < STATIONS.length) station = st;
+    if (window.localStorage.getItem('flipFellaMusic') === 'off') musicOn = false;
+  } catch (e) { }
+  if (/[?&]music=off/.test(location.search)) musicOn = false;
+
+  function playStation() {
+    if (!musicOn) return;
+    audio.src = STATIONS[station].urls[urlIdx];
+    var pr = audio.play(); if (pr && pr.catch) pr.catch(function () { });
+    clearTimeout(stallTimer); stallTimer = setTimeout(streamFailed, 15000);
+  }
+  function streamFailed() {
+    if (!musicOn) return;
+    failsInARow++;
+    if (failsInARow > 12) { failsInARow = 0; setTimeout(playStation, 60000); return; } // everything down, try again in a minute
+    urlIdx++;
+    if (urlIdx >= STATIONS[station].urls.length) { urlIdx = 0; station = (station + 1) % STATIONS.length; showToast(STATIONS[station].name); }
+    playStation();
+  }
+  audio.addEventListener('playing', function () { failsInARow = 0; clearTimeout(stallTimer); });
+  audio.addEventListener('error', function () { clearTimeout(stallTimer); setTimeout(streamFailed, 500); });
+  audio.addEventListener('ended', function () { setTimeout(playStation, 1000); });
+  audio.addEventListener('stalled', function () { clearTimeout(stallTimer); stallTimer = setTimeout(streamFailed, 15000); });
+
+  function saveMusic() {
+    try { window.localStorage.setItem('flipFellaStation', String(station)); window.localStorage.setItem('flipFellaMusic', musicOn ? 'on' : 'off'); } catch (e) { }
+  }
+  function toggleMusic() {
+    musicOn = !musicOn; saveMusic();
+    if (musicOn) { urlIdx = 0; playStation(); showToast(STATIONS[station].name); }
+    else { clearTimeout(stallTimer); audio.pause(); audio.removeAttribute('src'); try { audio.load(); } catch (e) { } showToast('Music off'); }
+  }
+  function nextStation() {
+    station = (station + 1) % STATIONS.length; urlIdx = 0; failsInARow = 0; musicOn = true; saveMusic();
+    playStation(); showToast(STATIONS[station].name);
+  }
+
   function keepAwake() {
     try { webapis.appcommon.setScreenSaver(webapis.appcommon.AppCommonScreenSaverState.SCREEN_SAVER_OFF); } catch (e) { }
   }
@@ -493,6 +541,8 @@
       case 39: setKind(1); break;                        // right
       case 13: if (!night) anim.move(now, L.W); break;   // OK: hop to another spot
       case 38: if (!night) anim.cheerStart = now; break; // up: a little cheer
+      case 40: nextStation(); break;                     // down: next station
+      case 10252: case 415: case 19: toggleMusic(); break; // play/pause, play, pause
       case 10009:                                        // Return/Back
         try { tizen.application.getCurrentApplication().exit(); } catch (err) { }
         break;
@@ -502,6 +552,7 @@
   });
   // tap or click on touch screens (iPad later): left third, right third switch character, middle hops
   document.addEventListener('click', function (e) {
+    if (musicOn && audio.paused) { urlIdx = 0; playStation(); return; }
     var x = e.clientX / L.W;
     if (x < .33) setKind(-1); else if (x > .67) setKind(1);
     else if (!night) anim.move((window.performance ? performance.now() : Date.now()) / 1000, L.W);
@@ -509,8 +560,11 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden) { keepAwake(); cardsDirty = true; } });
   window.addEventListener('resize', resize);
 
+  try { tizen.tvinputdevice.registerKey('MediaPlayPause'); tizen.tvinputdevice.registerKey('MediaPlay'); tizen.tvinputdevice.registerKey('MediaPause'); } catch (e) { }
+
   resize();
   keepAwake();
-  showToast(NAMES[kind]);
+  showToast(musicOn ? NAMES[kind] + ' \u00b7 ' + STATIONS[station].name : NAMES[kind]);
+  playStation();
   requestAnimationFrame(frame);
 })();
