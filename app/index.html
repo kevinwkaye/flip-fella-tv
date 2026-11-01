@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Flip Fella</title>
+<style>
+html, body { margin: 0; height: 100%; background: #050505; overflow: hidden; cursor: none; -webkit-user-select: none; }
+canvas { position: absolute; left: 0; top: 0; }
+#dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: #000; opacity: 0; pointer-events: none; -webkit-transition: opacity 3s; transition: opacity 3s; }
+#toast { position: absolute; right: 48px; top: 40px; padding: 10px 22px; border-radius: 6px; background: #1b1b1b; color: #f3f0e8; font: bold 30px "Roboto Condensed", "Arial Narrow", Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: 0; -webkit-transition: opacity .4s; transition: opacity .4s; }
+</style>
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+<canvas id="cards"></canvas>
+<canvas id="fella"></canvas>
+<div id="dim"></div>
+<div id="toast"></div>
+<script src="glyphs.js"></script>
+<script src="clock.js"></script>
+</body>
+</html>

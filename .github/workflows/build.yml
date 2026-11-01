@@ -1,0 +1,26 @@
+name: Build TV app
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the code parses as ES5 (the 2016 TV browser is old)
+        run: npx --yes acorn@8.11.3 --ecma5 --silent app/clock.js app/glyphs.js
+      - name: Package FlipFellaTV.wgt
+        run: cd app && zip -r -X ../FlipFellaTV.wgt . -x '*.DS_Store'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlipFellaTV
+          path: FlipFellaTV.wgt
+      - name: Publish to the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest FlipFellaTV.wgt --title "Flip Fella TV (latest)" --notes "Built from ${GITHUB_SHA::7}. Install with Apps2Samsung: pick your TV, choose Custom .wgt, select this file."
